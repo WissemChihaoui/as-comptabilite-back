@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class UserDocument extends Model
+class UserDocuments extends Model
 {
     use HasFactory;
 
@@ -13,7 +13,7 @@ class UserDocument extends Model
 
     public function form()
     {
-        return $this->belongsTo(Form::class);
+        return $this->belongsTo(Form::class, 'form_id');
     }
 
     public function document()

@@ -27,5 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Gestion des documents
     Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
-    Route::delete('/documents/{id}', [DocumentController::class, 'deleteDocument']);
+    // Route::delete('/documents/{id}', [DocumentController::class, 'deleteDocument']);
+    Route::get('/user/documents/{serviceId}', [DocumentController::class, 'getUserDocumentsByService']);
+    Route::delete('/documents/{id}', [DocumentController::class, 'destroy']);
+    Route::get('/documents/{id}', [DocumentController::class, 'getDocument']);
 });

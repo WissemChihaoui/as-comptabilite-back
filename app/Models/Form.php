@@ -23,6 +23,6 @@ class Form extends Model
 
     public function documents()
     {
-        return $this->hasMany(UserDocument::class);
+        return $this->hasMany(UserDocuments::class);
     }
 }

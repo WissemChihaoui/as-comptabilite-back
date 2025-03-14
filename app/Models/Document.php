@@ -15,8 +15,8 @@ class Document extends Model
     {
         return $this->belongsTo(Service::class, 'service_id');
     }
-    public function userDocuments()
+    public function UserDocuments()
     {
-        return $this->hasMany(UserDocument::class);
+        return $this->hasMany(UserDocuments::class);
     }
 }
