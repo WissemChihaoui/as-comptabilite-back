@@ -95,21 +95,38 @@ class DocumentController extends Controller
         return response()->json(['message' => 'Documents uploaded successfully!']);  
     }  
 
-    public function deleteDocument(Request $request, $id)
-    {
-        $userDocuments = UserDocuments::findOrFail($id);
-        $formId = $userDocuments->form_id;
+    public function deleteDocument(Request $request, $id)  
+{  
+    // Get the authenticated user  
+    $user = Auth::user();   
 
-        Storage::disk('public')->delete($userDocuments->file_path);
-        $userDocuments->delete();
+    // Find the document and ensure the user has access  
+    $userDocuments = UserDocuments::where('document_id', $id)  
+        ->whereHas('form', function ($query) use ($user) {  
+            $query->where('user_id', $user->id);  
+        })  
+        ->first();   
 
-        $remainingDocs = UserDocuments::where('form_id', $formId)->count();
-        if ($remainingDocs === 0) {
-            Form::where('id', $formId)->delete();
-        }
+    if (!$userDocuments) {  
+        return response()->json(['message' => 'Document not found or unauthorized.'], 404); // Not Found  
+    }  
 
-        return response()->json(['message' => 'Document deleted successfully!']);
-    }
+    // Delete the document's file from storage  
+    Storage::disk('public')->delete($userDocuments->file_path);  
+
+    // Delete the document  
+    $formId = $userDocuments->form_id;  
+    $userDocuments->delete();  
+
+    // Check if there are remaining documents for the form  
+    $remainingDocs = UserDocuments::where('form_id', $formId)->count();  
+    if ($remainingDocs === 0) {  
+        // If no documents remain, delete the associated form  
+        Form::where('id', $formId)->delete();  
+    }  
+
+    return response()->json(['message' => 'Document deleted successfully!'], 200); // Success response  
+}  
 
     public function getUserDocumentsByService(Request $request, $serviceId)
 {
@@ -183,5 +200,7 @@ public function getDocument($id)
     }  
 
     return response()->json($document);  
-}  
+}
+
+ 
 }
