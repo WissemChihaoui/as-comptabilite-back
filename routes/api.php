@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\FormController;
 
 Route::get('/hello', function () {
     return response()->json(['message' => 'bonjour!']);
@@ -27,8 +28,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Gestion des documents
     Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
-    // Route::delete('/documents/{id}', [DocumentController::class, 'deleteDocument']);
-    Route::get('/user/documents/{serviceId}', [DocumentController::class, 'getUserDocumentsByService']);
+    Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
     Route::delete('/documents/{id}', [DocumentController::class, 'destroy']);
     Route::get('/documents/{id}', [DocumentController::class, 'getDocument']);
+
+    // Get Status
+    Route::get('/status/{serviceId}', [DocumentController::class, 'getStatus']);
+    Route::get('/statusId/{id}', [DocumentController::class, 'getStatusById']);
+
+    // Submit Form
+    Route::post('/form/{serviceId}', [FormController::class, 'submitForm']);
+
 });
