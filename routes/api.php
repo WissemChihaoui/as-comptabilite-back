@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FormController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/hello', function () {
     return response()->json(['message' => 'bonjour!']);
@@ -25,6 +26,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Mise à jour du profil utilisateur
     Route::put('/user/profile', [UserController::class, 'updateProfile']);
     Route::put('/user/profile/matricule', [UserController::class, 'updateProfileMatricule']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'getUserNotifications']);
+    Route::patch('/notifications/read', [NotificationController::class, 'allRead']);
+    Route::patch('/notifications/read/{id}', [NotificationController::class, 'read']);
 
     // Gestion des documents
     Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
