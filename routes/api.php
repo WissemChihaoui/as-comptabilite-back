@@ -7,6 +7,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FormController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ServiceController;
 
 Route::get('/hello', function () {
     return response()->json(['message' => 'bonjour!']);
@@ -44,5 +45,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Submit Form
     Route::post('/form/{serviceId}', [FormController::class, 'submitForm']);
+
+    // Forms
+    Route::get('/forms', [FormController::class, 'getForms']);
+    Route::delete('/forms/{id}', [FormController::class, 'destroy']);
+    Route::patch('/forms/{id}', [FormController::class, 'update']);
+
+    //Users
+    Route::get('/users', [UserController::class, 'getUsers']);
+    Route::delete('/user/{id}', [UserController::class, 'destroy']);
+
+    //Services
+    Route::get('/services', [ServiceController::class, 'index']);
 
 });

@@ -25,4 +25,8 @@ class Form extends Model
     {
         return $this->hasMany(UserDocuments::class);
     }
+    public function userDocuments()
+    {
+        return $this->hasMany(UserDocuments::class, 'form_id');
+    }
 }
