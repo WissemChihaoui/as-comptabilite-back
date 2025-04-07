@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
     Route::delete('/documents/{id}', [DocumentController::class, 'destroy']);
     Route::get('/documents/{id}', [DocumentController::class, 'getDocument']);
+    Route::get('/documents/download/{id}', [DocumentController::class, 'download']);
 
     // Get Status
     Route::get('/status/{serviceId}', [DocumentController::class, 'getStatus']);
@@ -50,10 +51,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/forms', [FormController::class, 'getForms']);
     Route::delete('/forms/{id}', [FormController::class, 'destroy']);
     Route::patch('/forms/{id}', [FormController::class, 'update']);
+    Route::get('/forms/{id}', [FormController::class, 'get']);
 
     //Users
     Route::get('/users', [UserController::class, 'getUsers']);
-    Route::delete('/user/{id}', [UserController::class, 'destroy']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
 
     //Services
     Route::get('/services', [ServiceController::class, 'index']);

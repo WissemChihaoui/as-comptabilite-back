@@ -233,4 +233,23 @@ class DocumentController extends Controller
         return response()->json(['status' => $statusValue ?? 'none']);
     }
 
+    public function download($id)  
+{  
+    // Fetch the document record based on provided ID  
+    $document = UserDocuments::findOrFail($id);  
+
+    // Assuming that $document->file_path contains a path like 'documents/2/service_1/filename.docx'  
+    // Create the complete path to the file  
+    $path = storage_path('app/public/' . $document->file_path);  
+
+    // Check if file exists at the given path  
+    if (!file_exists($path)) {  
+        return response()->json(['message' => 'File not found'], 404);  
+    }  
+
+    // Return the file as a download response  
+    return response()->download($path, $document->original_name, [  
+        'Content-Type' => $document->mime_type,  
+    ]);  
+}  
 }

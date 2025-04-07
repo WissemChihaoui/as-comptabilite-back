@@ -1,11 +1,8 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
-
 use App\Models\User;
-
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,26 +18,26 @@ class UserController extends Controller
         // Validate the input data
         $request->validate([
             'demenagement' => 'nullable|date',
-            'adresse' => 'nullable|string|max:255',
-            'situation' => 'nullable|string|max:255',
+            'adresse'      => 'nullable|string|max:255',
+            'situation'    => 'nullable|string|max:255',
         ]);
 
-        $date = Carbon::parse($request -> date); // Example date
-        $formattedDate = $date->format('Y-m-d'); // Converts to YYYY-MM-DD
+        $date          = Carbon::parse($request->date); // Example date
+        $formattedDate = $date->format('Y-m-d');        // Converts to YYYY-MM-DD
 
         // Update user data
         $user->update([
             'demenagement' => $formattedDate,
-            'adresse' => $request->adresse,
-            'situation' => $request->situation,
+            'adresse'      => $request->adresse,
+            'situation'    => $request->situation,
         ]);
 
         return response()->json([
             'message' => 'Profile updated successfully!',
-            'user' => $user,
+            'user'    => $user,
         ], 200);
     }
-    
+
     public function updateProfileMatricule(Request $request)
     {
         $user = Auth::user();
@@ -57,18 +54,20 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Matricule updated successfully!',
-            'user' => $user,
+            'user'    => $user,
         ], 200);
     }
 
-    public function getUsers(){
+    public function getUsers()
+    {
         $users = User::where('isAdmin', 0)->get();
 
         return response()->json($users);
     }
 
-    public function destroy($id){
-        $user = Form::find($id);
+    public function destroy($id)
+    {
+        $user = User::find($id);
 
         if (! $user) {
             return response()->json(['message' => 'Utilisateur introuvable'], 404);
@@ -77,5 +76,36 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json(['message' => 'Utilisateur supprimé avec succès']);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = User::find($id);
+
+        if (! $user) {
+            return response()->json(['message' => 'Utilisateur introuvable'], 404);
+        }
+
+        $validated = $request->validate([
+            'name'         => 'required|string|max:255',
+            'email'        => 'required|email|unique:users,email,' . $id,
+            'demenagement' => 'nullable|date',
+            'matricule'    => 'nullable|string|max:255',
+            'adresse'      => 'nullable|string|max:255',
+            'situation'    => 'nullable|string|max:255',
+        ]);
+
+        // Format demenagement if provided
+        if ($request->filled('demenagement')) {
+            $date                      = Carbon::parse($request->demenagement);
+            $validated['demenagement'] = $date->format('Y-m-d');
+        }
+
+        $user->update($validated);
+
+        return response()->json([
+            'message' => 'Utilisateur mis à jour avec succès',
+            'user'    => $user,
+        ]);
     }
 }

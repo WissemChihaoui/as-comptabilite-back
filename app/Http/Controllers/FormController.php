@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Document;
 use App\Models\Form;
 use App\Models\Notification;
 use App\Models\UserDocuments;
@@ -55,43 +56,42 @@ class FormController extends Controller
         return response()->json($forms);
     }
     public function destroy($id)
-{
-    $form = Form::with(['user', 'service'])->find($id);
+    {
+        $form = Form::with(['user', 'service'])->find($id);
 
-    if (! $form) {
-        return response()->json(['message' => 'Formulaire introuvable'], 404);
-    }
-
-    $user = $form->user;
-    $serviceName = $form->service->name ?? 'le service concerné';
-
-    // Delete associated documents
-    $userDocuments = UserDocuments::where('form_id', $form->id)->get();
-
-    foreach ($userDocuments as $userDocument) {
-        if (Storage::exists($userDocument->file_path)) {
-            Storage::delete($userDocument->file_path);
+        if (! $form) {
+            return response()->json(['message' => 'Formulaire introuvable'], 404);
         }
+
+        $user        = $form->user;
+        $serviceName = $form->service->name ?? 'le service concerné';
+
+        // Delete associated documents
+        $userDocuments = UserDocuments::where('form_id', $form->id)->get();
+
+        foreach ($userDocuments as $userDocument) {
+            if (Storage::exists($userDocument->file_path)) {
+                Storage::delete($userDocument->file_path);
+            }
+        }
+
+        UserDocuments::where('form_id', $form->id)->delete();
+
+        // Send notification before deletion
+        if ($user) {
+            Notification::create([
+                'user_id'     => $user->id,
+                'type'        => 'form_deleted',
+                'title'       => "Votre formulaire pour <strong>{$serviceName}</strong> a été supprimé.",
+                'serviceLink' => "/dashboard/forms", // or anywhere you redirect for forms list
+                'isUnRead'    => true,
+            ]);
+        }
+
+        $form->delete();
+
+        return response()->json(['message' => 'Formulaire et documents associés supprimés avec succès']);
     }
-
-    UserDocuments::where('form_id', $form->id)->delete();
-
-    // Send notification before deletion
-    if ($user) {
-        Notification::create([
-            'user_id'     => $user->id,
-            'type'        => 'form_deleted',
-            'title'       => "Votre formulaire pour <strong>{$serviceName}</strong> a été supprimé.",
-            'serviceLink' => "/dashboard/forms", // or anywhere you redirect for forms list
-            'isUnRead'    => true,
-        ]);
-    }
-
-    $form->delete();
-
-    return response()->json(['message' => 'Formulaire et documents associés supprimés avec succès']);
-}
-
 
     public function update(Request $request, $id)
     {
@@ -141,6 +141,31 @@ class FormController extends Controller
 
         return response()->json([
             'message' => 'Statut du formulaire mis à jour avec succès',
+            'form'    => $form,
+        ]);
+    }
+
+    public function get($id)
+    {
+        $form = Form::with(['user', 'service'])->findOrFail($id);
+
+        // Get all required documents for the service
+        $documents = Document::where('service_id', $form->service_id)->get();
+
+        // Get uploaded user documents for this form
+        $userDocuments = $form->userDocuments()->get()->groupBy('document_id');
+
+        // Attach the user_documents array (even if only one or none) to each document
+        $documentsWithUserFiles = $documents->map(function ($document) use ($userDocuments) {
+            $document->user_document = $userDocuments->get($document->id)?->values() ?? [];
+            return $document;
+        });
+
+        // Add the documents to the form object
+        $form->documents = $documentsWithUserFiles;
+
+        return response()->json([
+            'message' => 'Found!',
             'form'    => $form,
         ]);
     }
