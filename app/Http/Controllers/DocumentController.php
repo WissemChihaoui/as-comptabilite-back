@@ -150,8 +150,6 @@ class DocumentController extends Controller
 
     public function destroy($userDocumentId)
     {
-
-        // Get the authenticated user
         $user = Auth::user();
         \Log::info('Authenticated User ID: ' . ($user ? $user->id : 'No User Authenticated'));
 
@@ -159,16 +157,15 @@ class DocumentController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié.'], 401); // Unauthorized
         }
 
-        // Retrieve the UserDocument by ID
+        // Retrieve the UserDocument by ID with the related form
         $userDocument = UserDocuments::with('form')->find($userDocumentId);
 
-        // Check if the UserDocument exists
         if (! $userDocument) {
             return response()->json(['message' => 'User document introuvable.'], 404); // Not Found
         }
 
-        // Check if the authenticated user is allowed to delete this UserDocument
-        if ($userDocument->form->user_id !== $user->id) {
+        // Check if the user is authorized (owner OR admin)
+        if ($user->isAdmin !== 1 && $userDocument->form->user_id !== $user->id) {
             return response()->json(['message' => 'Vous n\'êtes pas autorisé à supprimer ce document.'], 403); // Forbidden
         }
 
@@ -177,25 +174,25 @@ class DocumentController extends Controller
 
         // Delete the file from storage if it exists
         if (Storage::exists($filePath)) {
-            Storage::delete($filePath); // Delete the file
+            Storage::delete($filePath);
         }
 
-        // Store form ID before deleting the document
+        // Save form ID before deleting
         $formId = $userDocument->form_id;
 
-        // Proceed to delete the UserDocument
+        // Delete the document
         $userDocument->delete();
 
+        // If no documents remain, delete the form too
         $remainingDocuments = UserDocuments::where('form_id', $formId)->count();
-
         if ($remainingDocuments === 0) {
-            // No documents left, delete the form
             Form::where('id', $formId)->delete();
             \Log::info("Form ID $formId deleted because no documents remain.");
         }
 
         return response()->json(['message' => 'Document et fichier supprimés avec succès'], 200);
     }
+
     public function getDocument($id)
     {
         $user = Auth::user(); // Get the authenticated user
@@ -233,23 +230,23 @@ class DocumentController extends Controller
         return response()->json(['status' => $statusValue ?? 'none']);
     }
 
-    public function download($id)  
-{  
-    // Fetch the document record based on provided ID  
-    $document = UserDocuments::findOrFail($id);  
+    public function download($id)
+    {
+        // Fetch the document record based on provided ID
+        $document = UserDocuments::findOrFail($id);
 
-    // Assuming that $document->file_path contains a path like 'documents/2/service_1/filename.docx'  
-    // Create the complete path to the file  
-    $path = storage_path('app/public/' . $document->file_path);  
+        // Assuming that $document->file_path contains a path like 'documents/2/service_1/filename.docx'
+        // Create the complete path to the file
+        $path = storage_path('app/public/' . $document->file_path);
 
-    // Check if file exists at the given path  
-    if (!file_exists($path)) {  
-        return response()->json(['message' => 'File not found'], 404);  
-    }  
+        // Check if file exists at the given path
+        if (! file_exists($path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
 
-    // Return the file as a download response  
-    return response()->download($path, $document->original_name, [  
-        'Content-Type' => $document->mime_type,  
-    ]);  
-}  
+        // Return the file as a download response
+        return response()->download($path, $document->original_name, [
+            'Content-Type' => $document->mime_type,
+        ]);
+    }
 }

@@ -20,22 +20,15 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
 
 // Documents liés aux services
-Route::get('/services/{id}/documents', [DocumentController::class, 'getDocumentsByService']);
 
 // Routes protégées par Sanctum
 Route::middleware('auth:sanctum')->group(function () {
-    // Mise à jour du profil utilisateur
-    Route::put('/user/profile', [UserController::class, 'updateProfile']);
-    Route::put('/user/profile/matricule', [UserController::class, 'updateProfileMatricule']);
-
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'getUserNotifications']);
     Route::patch('/notifications/read', [NotificationController::class, 'allRead']);
     Route::patch('/notifications/read/{id}', [NotificationController::class, 'read']);
 
     // Gestion des documents
-    Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
-    Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
     Route::delete('/documents/{id}', [DocumentController::class, 'destroy']);
     Route::get('/documents/{id}', [DocumentController::class, 'getDocument']);
     Route::get('/documents/download/{id}', [DocumentController::class, 'download']);
@@ -60,5 +53,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Services
     Route::get('/services', [ServiceController::class, 'index']);
+    Route::middleware('client')->group(function () {
+        Route::get('/services/{id}/documents', [DocumentController::class, 'getDocumentsByService']);
+        Route::put('/user/profile', [UserController::class, 'updateProfile']);
+        Route::put('/user/profile/matricule', [UserController::class, 'updateProfileMatricule']);
+        Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
+    Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
+
+
+    });
+    Route::middleware('admin')->group(function () {
+
+    });
 
 });

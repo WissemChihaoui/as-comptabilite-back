@@ -8,10 +8,12 @@ class NotificationController extends Controller
 {
     public function getUserNotifications()
     {
-        // return auth()->user()->notifications()->latest()->get();
         $user = Auth::user();
 
-        $data = Notification::where('user_id', $user->id)->latest()->get();
+        $data = Notification::where('user_id', $user->id)
+            ->latest()
+            ->limit(20)
+            ->get();
 
         return $data;
     }
@@ -31,7 +33,7 @@ class NotificationController extends Controller
 
         return response()->json(['status' => 'error', 'message' => 'No notifications to mark as read.']);
     }
-    
+
     public function read($id)
     {
         $notification = Notification::where('id', $id)
