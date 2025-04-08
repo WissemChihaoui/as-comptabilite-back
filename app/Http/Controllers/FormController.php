@@ -170,4 +170,36 @@ class FormController extends Controller
         ]);
     }
 
+    public function documentDelete($id)
+    {
+        // Retrieve the UserDocument by ID with the related form
+        $userDocument = UserDocuments::with('form')->find($id);
+
+        if (! $userDocument) {
+            return response()->json(['message' => 'User document introuvable.'], 404); // Not Found
+        }
+        // Get the file path to delete it
+        $filePath = $userDocument->file_path;
+
+        // Delete the file from storage if it exists
+        if (Storage::exists($filePath)) {
+            Storage::delete($filePath);
+        }
+
+        // Save form ID before deleting
+        $formId = $userDocument->form_id;
+
+        // Delete the document
+        $userDocument->delete();
+
+        // If no documents remain, delete the form too
+        $remainingDocuments = UserDocuments::where('form_id', $formId)->count();
+        if ($remainingDocuments === 0) {
+            Form::where('id', $formId)->delete();
+            \Log::info("Form ID $formId deleted because no documents remain.");
+        }
+
+        return response()->json(['message' => 'Document et fichier supprimés avec succès'], 200);
+    }
+
 }

@@ -1,13 +1,12 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\FormController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/hello', function () {
     return response()->json(['message' => 'bonjour!']);
@@ -46,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/forms/{id}', [FormController::class, 'update']);
     Route::get('/forms/{id}', [FormController::class, 'get']);
 
+    Route::delete('/forms/document/{id}', [FormController::class, 'documentDelete']);
+
     //Users
     Route::get('/users', [UserController::class, 'getUsers']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
@@ -58,8 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/user/profile', [UserController::class, 'updateProfile']);
         Route::put('/user/profile/matricule', [UserController::class, 'updateProfileMatricule']);
         Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
-    Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
-
+        Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
 
     });
     Route::middleware('admin')->group(function () {
