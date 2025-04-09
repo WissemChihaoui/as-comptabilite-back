@@ -5,49 +5,66 @@ use App\Models\Document;
 use App\Models\Form;
 use App\Models\Notification;
 use App\Models\UserDocuments;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Mail\ChangeStatutsMail;
+use Illuminate\Support\Facades\Mail;
 
 class FormController extends Controller
 {
     public function submitForm(Request $request, $serviceId)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        $form = Form::where('user_id', $user->id)
-            ->where('service_id', $serviceId)
-            ->first();
+    $form = Form::where('user_id', $user->id)
+        ->where('service_id', $serviceId)
+        ->with('service') // Charger le nom du service
+        ->first();
 
-        if (! $form) {
-            return response()->json(['status' => 'form_not_found']);
-        }
-
-        if ($form->status === "pending" || $form->status === "  ") {
-            $form->status = 'review';
-            $form->save();
-
-            // Create a notification when the form is submitted
-            Notification::create([
-                'user_id'     => $user->id,
-                'type'        => 'form_submission',
-                'title'       => 'Votre formulaire a été soumis pour examen.',
-                'serviceLink' => $serviceId,
-            ]);
-
-            return response()->json(['status' => 'submitted_for_review']);
-        }
-
-        if ($form->status === "review") {
-            return response()->json(['status' => 'form_in_review']);
-        }
-
-        if ($form->status === "accepted") {
-            return response()->json(['status' => 'form_accepted']);
-        }
-
-        return response()->json(['status' => 'unknown_error']);
+    if (! $form) {
+        return response()->json(['status' => 'form_not_found']);
     }
+
+    if ($form->status === "pending" || trim($form->status) === "") {
+        $form->status = 'review';
+        $form->save();
+
+        // 🔔 Notification pour l’utilisateur
+        Notification::create([
+            'user_id'     => $user->id,
+            'type'        => 'form_submission',
+            'title'       => 'Votre formulaire a été soumis pour examen.',
+            'serviceLink' => $serviceId,
+        ]);
+
+        // 🔔 Notification pour les admins
+        $admins = User::where('isAdmin', 1)->get();
+
+        foreach ($admins as $admin) {
+            Notification::create([
+                'user_id'     => $admin->id,
+                'type'        => 'form_submission',
+                'title'       => "Nouvelle soumission de formulaire de {$user->name} pour le service « {$form->service->name} ».",
+                'serviceLink' => "/dashboard/forms/{$form->id}",
+                'isUnRead'    => true,
+            ]);
+        }
+
+        return response()->json(['status' => 'submitted_for_review']);
+    }
+
+    if ($form->status === "review") {
+        return response()->json(['status' => 'form_in_review']);
+    }
+
+    if ($form->status === "accepted") {
+        return response()->json(['status' => 'form_accepted']);
+    }
+
+    return response()->json(['status' => 'unknown_error']);
+}
 
     public function getForms()
     {
@@ -137,7 +154,13 @@ class FormController extends Controller
                 'serviceLink' => "/dashboard/forms/{$form->id}", // adjust if needed
                 'isUnRead'    => true,
             ]);
+            if ($user->email) {
+                Mail::to($user->email)->send(
+                    new ChangeStatutsMail($messages[$form->status], $form->status)
+                );
+            }
         }
+      
 
         return response()->json([
             'message' => 'Statut du formulaire mis à jour avec succès',
