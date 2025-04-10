@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/forms/{id}', [FormController::class, 'get']);
 
     Route::delete('/forms/document/{id}', [FormController::class, 'documentDelete']);
+    Route::get('/statistics', [FormController::class, 'getStatistics']);
 
     //Users
     Route::get('/users', [UserController::class, 'getUsers']);

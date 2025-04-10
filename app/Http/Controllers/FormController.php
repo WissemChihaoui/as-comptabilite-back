@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Document;
 use App\Models\Form;
 use App\Models\Notification;
@@ -224,5 +225,35 @@ class FormController extends Controller
 
         return response()->json(['message' => 'Document et fichier supprimés avec succès'], 200);
     }
+
+    public function getStatistics()
+{
+    $months = collect();
+    for ($i = 7; $i >= 0; $i--) {
+        $months->push(Carbon::now()->subMonths($i)->startOfMonth());
+    }
+
+    $usersMonthly = $months->map(function ($date) {
+        return User::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+    });
+
+    $formsMonthly = $months->map(function ($date) {
+        return Form::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+    });
+
+    $documentsMonthly = $months->map(function ($date) {
+        return UserDocuments::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+    });
+
+    return response()->json([
+        'totalUsers' => User::count(),
+        'totalForms' => Form::count(),
+        'totalDocuments' => UserDocuments::count(),
+
+        'usersMonthly' => $usersMonthly,
+        'formsMonthly' => $formsMonthly,
+        'documentsMonthly' => $documentsMonthly,
+    ]);
+}
 
 }
