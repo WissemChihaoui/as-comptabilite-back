@@ -1,11 +1,13 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Mail\WelcomeUserMail;
+use App\Mail\VerifyEmail;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -14,26 +16,27 @@ class AuthController extends Controller
     {
         $request->validate([
             'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
+            'email'    => 'required|string|email|max:255|unique:users|unique:email_verifications,email',
             'password' => 'required|string|min:6',
-        ],[
-            "name.required"=>"",
         ]);
 
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+        $token = Str::random(64);
+
+        DB::table('email_verifications')->insert([
+            'name'       => $request->name,
+            'email'      => $request->email,
+            'password'   => Hash::make($request->password),
+            'token'      => $token,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        // Envoi de l'e-mail de bienvenue
-        Mail::to($user->email)->send(new WelcomeUserMail($user));
+        $verificationLink = url("/api/verify-email/{$token}");
 
-        $token = $user->createToken('YourAppName')->plainTextToken;
+        Mail::to($request->email)->send(new VerifyEmail($verificationLink));
 
         return response()->json([
-            'user'        => $user,
-            'accessToken' => $token,
+            'message' => 'Un lien de vérification a été envoyé à votre adresse e-mail.',
         ]);
     }
 
@@ -71,4 +74,33 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function verifyEmail($token)
+    {
+        $record   = DB::table('email_verifications')->where('token', $token)->first();
+        $frontend = config('app.frontend_url', 'http://localhost:3031');
+        if (! $record || now()->diffInHours($record->created_at) > 24) {
+            if ($record) {
+                DB::table('email_verifications')->where('token', $token)->delete();
+            }
+
+            return redirect()->away("{$frontend}/auth/jwt/sign-in?error=invalid-or-expired-link");
+        }
+
+        if (User::where('email', $record->email)->exists()) {
+            return redirect()->away("{$frontend}/auth/jwt/sign-in?error=already-verified");
+        }
+
+        $user = User::create([
+            'name'     => $record->name,
+            'email'    => $record->email,
+            'password' => $record->password,
+        ]);
+
+        DB::table('email_verifications')->where('token', $token)->delete();
+
+        // ✅ Redirect to login with success message
+        return redirect()->away("{$frontend}/auth/jwt/sign-in?success=email-verified");
+    }
+
 }
