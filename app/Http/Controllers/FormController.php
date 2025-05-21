@@ -1,71 +1,71 @@
 <?php
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
+use App\Mail\ChangeStatutsMail;
 use App\Models\Document;
 use App\Models\Form;
 use App\Models\Notification;
-use App\Models\UserDocuments;
 use App\Models\User;
+use App\Models\UserDocuments;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use App\Mail\ChangeStatutsMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class FormController extends Controller
 {
     public function submitForm(Request $request, $serviceId)
-{
-    $user = Auth::user();
+    {
+        $user = Auth::user();
 
-    $form = Form::where('user_id', $user->id)
-        ->where('service_id', $serviceId)
-        ->with('service') // Charger le nom du service
-        ->first();
+        $form = Form::where('user_id', $user->id)
+            ->where('service_id', $serviceId)
+            ->with('service') // Charger le nom du service
+            ->first();
 
-    if (! $form) {
-        return response()->json(['status' => 'form_not_found']);
-    }
-
-    if ($form->status === "pending" || trim($form->status) === "") {
-        $form->status = 'review';
-        $form->save();
-
-        // 🔔 Notification pour l’utilisateur
-        Notification::create([
-            'user_id'     => $user->id,
-            'type'        => 'form_submission',
-            'title'       => 'Votre formulaire a été soumis pour examen.',
-            'serviceLink' => $serviceId,
-        ]);
-
-        // 🔔 Notification pour les admins
-        $admins = User::where('isAdmin', 1)->get();
-
-        foreach ($admins as $admin) {
-            Notification::create([
-                'user_id'     => $admin->id,
-                'type'        => 'form_submission',
-                'title'       => "Nouvelle soumission de formulaire de {$user->name} pour le service « {$form->service->name} ».",
-                'serviceLink' => "/dashboard/forms/{$form->id}",
-                'isUnRead'    => true,
-            ]);
+        if (! $form) {
+            return response()->json(['status' => 'form_not_found']);
         }
 
-        return response()->json(['status' => 'submitted_for_review']);
-    }
+        if ($form->status === "pending" || trim($form->status) === "") {
+            $form->status = 'review';
+            $form->save();
 
-    if ($form->status === "review") {
-        return response()->json(['status' => 'form_in_review']);
-    }
+            // 🔔 Notification pour l’utilisateur
+            Notification::create([
+                'user_id'     => $user->id,
+                'type'        => 'form_submission',
+                'title'       => 'Votre formulaire a été soumis pour examen.',
+                'serviceLink' => $serviceId,
+            ]);
 
-    if ($form->status === "accepted") {
-        return response()->json(['status' => 'form_accepted']);
-    }
+            // 🔔 Notification pour les admins
+            $admins = User::where('isAdmin', 1)->get();
 
-    return response()->json(['status' => 'unknown_error']);
-}
+            foreach ($admins as $admin) {
+                Notification::create([
+                    'user_id'     => $admin->id,
+                    'type'        => 'form_submission',
+                    'title'       => "Nouvelle soumission de formulaire de {$user->name} pour le service « {$form->service->name} ».",
+                    'serviceLink' => "/dashboard/forms/{$form->id}",
+                    'isUnRead'    => true,
+                ]);
+            }
+
+            return response()->json(['status' => 'submitted_for_review']);
+        }
+
+        if ($form->status === "review") {
+            return response()->json(['status' => 'form_in_review']);
+        }
+
+        if ($form->status === "accepted") {
+            return response()->json(['status' => 'form_accepted']);
+        }
+
+        return response()->json(['status' => 'unknown_error']);
+    }
 
     public function getForms()
     {
@@ -115,19 +115,21 @@ class FormController extends Controller
     {
         $request->validate([
             'status' => 'required|string|in:pending,review,rejected,accepted',
+            'note'   => 'nullable|string', // Validate note
         ]);
 
-        $form = Form::with(['user', 'service'])->find($id); // Eager load user and service
+        $form = Form::with(['user', 'service'])->find($id);
 
         if (! $form) {
             return response()->json(['message' => 'Formulaire introuvable'], 404);
         }
 
-        if ($form->status === $request->status) {
-            return response()->json(['message' => 'Le statut est déjà défini à cette valeur'], 400);
+        if ($form->status === $request->status && $form->note === $request->note) {
+            return response()->json(['message' => 'Aucune modification détectée'], 400);
         }
 
         $form->status = $request->status;
+        $form->note   = $request->note; // Update note (can be null)
         $form->save();
 
         $user        = $form->user;
@@ -152,16 +154,16 @@ class FormController extends Controller
                 'user_id'     => $user->id,
                 'type'        => $types[$form->status],
                 'title'       => $messages[$form->status],
-                'serviceLink' => "/dashboard/forms/{$form->id}", // adjust if needed
+                'serviceLink' => "/dashboard/forms/{$form->id}",
                 'isUnRead'    => true,
             ]);
+
             if ($user->email) {
                 Mail::to($user->email)->send(
                     new ChangeStatutsMail($messages[$form->status], $form->status)
                 );
             }
         }
-      
 
         return response()->json([
             'message' => 'Statut du formulaire mis à jour avec succès',
@@ -227,33 +229,44 @@ class FormController extends Controller
     }
 
     public function getStatistics()
-{
-    $months = collect();
-    for ($i = 7; $i >= 0; $i--) {
-        $months->push(Carbon::now()->subMonths($i)->startOfMonth());
+    {
+        $months = collect();
+        for ($i = 7; $i >= 0; $i--) {
+            $months->push(Carbon::now()->subMonths($i)->startOfMonth());
+        }
+
+        $usersMonthly = $months->map(function ($date) {
+            return User::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+        });
+
+        $formsMonthly = $months->map(function ($date) {
+            return Form::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+        });
+
+        $documentsMonthly = $months->map(function ($date) {
+            return UserDocuments::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
+        });
+
+        return response()->json([
+            'totalUsers'       => User::count(),
+            'totalForms'       => Form::count(),
+            'totalDocuments'   => UserDocuments::count(),
+
+            'usersMonthly'     => $usersMonthly,
+            'formsMonthly'     => $formsMonthly,
+            'documentsMonthly' => $documentsMonthly,
+        ]);
     }
 
-    $usersMonthly = $months->map(function ($date) {
-        return User::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
-    });
+    public function getMyForms()
+{
+    $user = Auth::user();
 
-    $formsMonthly = $months->map(function ($date) {
-        return Form::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
-    });
+    $forms = Form::with('service')
+        ->where('user_id', $user->id)
+        ->get();
 
-    $documentsMonthly = $months->map(function ($date) {
-        return UserDocuments::whereBetween('created_at', [$date, $date->copy()->endOfMonth()])->count();
-    });
-
-    return response()->json([
-        'totalUsers' => User::count(),
-        'totalForms' => Form::count(),
-        'totalDocuments' => UserDocuments::count(),
-
-        'usersMonthly' => $usersMonthly,
-        'formsMonthly' => $formsMonthly,
-        'documentsMonthly' => $documentsMonthly,
-    ]);
+    return response()->json($forms);
 }
 
 }

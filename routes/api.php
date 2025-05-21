@@ -64,9 +64,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
         Route::get('/user/documents/{serviceId}/{id}', [DocumentController::class, 'getUserDocumentsByService']);
 
+        Route::get('/myforms', [FormController::class, 'getMyForms']);
+        
     });
     Route::middleware('admin')->group(function () {
-
+        
     });
-
+    
 });

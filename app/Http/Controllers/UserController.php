@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 class UserController extends Controller
 {
     /**
-     * Update the demenagement, adresse, and situation fields for the current user.
      */
     public function updateProfile(Request $request)
     {
@@ -17,9 +16,8 @@ class UserController extends Controller
 
         // Validate the input data
         $request->validate([
-            'demenagement' => 'nullable|date',
-            'adresse'      => 'nullable|string|max:255',
-            'situation'    => 'nullable|string|max:255',
+            'adresse'   => 'nullable|string|max:255',
+            'matricule' => 'nullable|string|max:255',
         ]);
 
         $date          = Carbon::parse($request->date); // Example date
@@ -27,9 +25,8 @@ class UserController extends Controller
 
         // Update user data
         $user->update([
-            'demenagement' => $formattedDate,
-            'adresse'      => $request->adresse,
-            'situation'    => $request->situation,
+            'adresse'   => $request->adresse,
+            'matricule' => $request->matricule,
         ]);
 
         return response()->json([
@@ -89,17 +86,15 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'email'        => 'required|email|unique:users,email,' . $id,
-            'demenagement' => 'nullable|date',
             'matricule'    => 'nullable|string|max:255',
             'adresse'      => 'nullable|string|max:255',
-            'situation'    => 'nullable|string|max:255',
         ]);
 
         // Format demenagement if provided
-        if ($request->filled('demenagement')) {
-            $date                      = Carbon::parse($request->demenagement);
-            $validated['demenagement'] = $date->format('Y-m-d');
-        }
+        // if ($request->filled('demenagement')) {
+        //     $date                      = Carbon::parse($request->demenagement);
+        //     $validated['demenagement'] = $date->format('Y-m-d');
+        // }
 
         $user->update($validated);
 

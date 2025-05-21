@@ -19,9 +19,9 @@ class User extends Authenticatable
         'name',       // Add name here
         'email',
         'password',
-        'demenagement',
+        // 'demenagement',
         'adresse',
-        'situation',
+        // 'situation',
         'matricule',
     ];
 

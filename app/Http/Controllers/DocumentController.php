@@ -143,7 +143,7 @@ class DocumentController extends Controller
             return response()->json(['message' => 'No form found for this service'], 404);
         }
 
-        $documents = UserDocuments::where('document_id', $id)->where('form_id', $form->id)->get();
+        $documents = UserDocuments::where('document_id', $id)->where('form_id', $form->id)->with('document')->get();
 
         return response()->json($documents);
     }
@@ -214,20 +214,32 @@ class DocumentController extends Controller
     {
         $user = Auth::user();
 
-        $statusValue = Form::where('user_id', $user->id)
+        $form = Form::where('user_id', $user->id)
             ->where('service_id', $serviceId)
-            ->value('status');
+            ->select('status', 'note')
+            ->first();
 
-        return response()->json(['status' => $statusValue ?? 'none', 'serviceId' => $serviceId]);
+        return response()->json([
+            'status'    => $form->status ?? 'none',
+            'note'      => $form->note ?? null,
+            'serviceId' => $serviceId,
+        ]);
     }
 
     public function getStatusById($id)
     {
         $user = Auth::user();
 
-        $statusValue = Form::where('id', $id)->value('status');
+        $form = Form::select('status', 'note')->find($id);
 
-        return response()->json(['status' => $statusValue ?? 'none']);
+        if (! $form) {
+            return response()->json(['message' => 'Formulaire introuvable'], 404);
+        }
+
+        return response()->json([
+            'status' => $form->status ?? 'none',
+            'note'   => $form->note ?? null,
+        ]);
     }
 
     public function download($id)
